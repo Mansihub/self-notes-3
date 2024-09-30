@@ -1,0 +1,8 @@
+create table tasks(
+taskId VARCHAR(255) primary key, taskName VARCHAR(255), taskDescription VARCHAR(255) , status VARCHAR(255), email VARCHAR(255) unique);
+create table users(
+    userId VARCHAR(255),
+    fname VARCHAR(255),
+    lname VARCHAR(255),
+    email VARCHAR(255) ,
+    password VARCHAR(255))

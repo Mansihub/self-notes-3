@@ -1,0 +1,45 @@
+Without SSR (Client-Side Rendering):
+
+User requests a blog post.
+Server sends a basic HTML file with a JavaScript file.
+Browser loads the HTML, then runs the JavaScript.
+JavaScript fetches the blog content from the server and inserts it into the HTML.
+
+With SSR:
+
+User requests a blog post.
+Server fetches the blog content, generates the full HTML for the page with the blog content included, and sends this HTML to the browser.
+Browser displays the fully rendered HTML immediately.
+
+
+// server.js (Node.js with Express)
+const express = require('express');
+const app = express();
+const PORT = 3000;
+
+// Sample blog data
+const blogs = [
+  { id: 1, title: 'First Blog Post', content: 'This is the first blog post.' },
+  { id: 2, title: 'Second Blog Post', content: 'This is the second blog post.' },
+];
+
+// Route to render blog posts
+app.get('/', (req, res) => {
+  const blogHtml = blogs.map(blog => `
+    <h2>${blog.title}</h2>
+    <p>${blog.content}</p>
+  `).join('');
+  res.send(`
+    <html>
+      <head><title>Blog</title></head>
+      <body>
+        <h1>Blog Posts</h1>
+        ${blogHtml}
+      </body>
+    </html>
+  `);
+});
+
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});

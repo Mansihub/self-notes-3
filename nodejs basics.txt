@@ -1,0 +1,57 @@
+var http = require('http');
+
+http.createServer(function (req, res) {
+  res.writeHead(200, {'Content-Type': 'text/html'});
+  res.end('Hello World!');
+}).listen(8080);
+
+Now, your computer works as a server!
+
+If anyone tries to access your computer on port 8080, they will get a "Hello World!" message in return!
+Node.js has a set of built-in modules which you can use without any further installation.
+To include a module, use the require() function with the name of the module.
+
+If the response from the HTTP server is supposed to be displayed as HTML, you should include an HTTP header with the correct content type:
+
+var http = require('http');
+http.createServer(function (req, res) {
+  res.writeHead(200, {'Content-Type': 'text/html'});
+  res.write('Hello World!');
+  res.end();
+}).listen(8080);
+
+The first argument of the res.writeHead() method is the status code, 200 means that all is OK, the second argument is an object containing the response headers.
+
+The function passed into the http.createServer() has a req argument that represents the request from the client.
+This object has a property called "url" which holds the part of the url that comes after the domain name
+
+var http = require('http');
+http.createServer(function (req, res) {
+  res.writeHead(200, {'Content-Type': 'text/html'});
+  res.write(req.url);
+  res.end();
+}).listen(8080);
+
+for url:http://localhost:8080/winter
+
+the above code will produce this result:/winter
+
+There are built-in modules to easily split the query string into readable parts, such as the URL module.
+var http = require('http');
+var url = require('url');
+
+http.createServer(function (req, res) {
+  res.writeHead(200, {'Content-Type': 'text/html'});
+  var q = url.parse(req.url, true).query;
+  var txt = q.year + " " + q.month;
+  res.end(txt);
+}).listen(8080);
+
+The address:http://localhost:8080/?year=2017&month=July
+
+Will produce this result:2017 July
+
+A package in Node.js contains all the files you need for a module.
+
+Modules are JavaScript libraries you can include in your project.
+

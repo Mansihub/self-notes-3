@@ -1,0 +1,6 @@
+<ng-container *ngIf="items.displayName!=='Run Mode';else runModeTemplate">
+    <p class="item-value" [ngClass]="{'flowname': items.savedAs.includes('flowName')}">{{getValue(items.savedAs)}}</p>
+  </ng-container>
+  <ng-template #runModeTemplate>
+    <p class="item-value">{{selectedOption}}</p>
+  </ng-template>

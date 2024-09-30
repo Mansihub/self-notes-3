@@ -1,0 +1,72 @@
+ng-model binds form controls (like input fields) to variables in the AngularJS scope. This binding is crucial because AngularJS uses the model's value to manage form validation states.
+The $error object used for validation is dependent on the model's state. If ng-model is removed, AngularJS can’t track or validate the input's value because there’s no associated model.
+
+`ng-model` is critical in AngularJS for several cases where its functionality is required to ensure proper data handling, binding, and validation. Here are different scenarios where `ng-model` is necessary:
+
+### 1. **Form Validation**
+
+- **Purpose**: To validate form inputs and show validation messages.
+- **Example**: You need to display validation errors or enable/disable submit buttons based on the form’s validity.
+- **How It Works**: AngularJS uses `ng-model` to track and validate the value of form controls. Without it, validation mechanisms like `$error` and `$valid` won’t work.
+
+  ```html
+  <form name="myForm">
+    Email:
+    <input type="email" name="myAddress" ng-model="email">
+    <span ng-show="myForm.myAddress.$error.email">Not a valid e-mail address</span>
+  </form>
+  ```
+
+### 2. **Two-Way Data Binding**
+
+- **Purpose**: To keep the model and view in sync, ensuring that changes in the view update the model and vice versa.
+- **Example**: When you want to display user input in a variable or update the view when the variable changes.
+- **How It Works**: `ng-model` binds the input value to a scope variable, so changes to the input field automatically update the variable and vice versa.
+
+  ```html
+  <input type="text" ng-model="username">
+  <p>Welcome, {{username}}!</p>
+  ```
+
+### 3. **Form Control State Management**
+
+- **Purpose**: To manage the state of form controls, such as whether they are touched, dirty, or pristine.
+- **Example**: To apply conditional styling based on the form control’s state or to enable/disable form submission buttons.
+- **How It Works**: `ng-model` provides access to the form control’s state through properties like `$dirty`, `$pristine`, and `$touched`.
+
+  ```html
+  <input type="text" name="firstName" ng-model="firstName">
+  <button ng-disabled="myForm.$invalid">Submit</button>
+  ```
+
+### 4. **Custom Directives**
+
+- **Purpose**: When creating custom directives that need to interact with form controls or handle input values.
+- **Example**: Custom validation directives or form control components that require interaction with the model.
+- **How It Works**: Custom directives often use `ng-model` to integrate with the form and access the model’s value.
+
+  ```html
+  <my-custom-input ng-model="userInput"></my-custom-input>
+  ```
+
+### 5. **Data Binding with ng-options and ng-repeat**
+
+- **Purpose**: To bind options in a dropdown or to repeat elements based on an array.
+- **Example**: Populating a dropdown list with values from the model or dynamically generating form fields.
+- **How It Works**: `ng-model` binds the selected value from a dropdown or the values in a repeated list to scope variables.
+
+  ```html
+  <select ng-model="selectedOption" ng-options="option for option in options"></select>
+  ```
+
+### Summary
+
+You **must** use `ng-model` in AngularJS for:
+- Form validation to track and manage form control states.
+- Two-way data binding to synchronize model and view.
+- Managing form control states such as touched or dirty.
+- Custom directives that require model interaction.
+- Binding options and repeating elements dynamically.
+
+In any case where AngularJS needs to track, update, or validate form input values or manage state based on user input, `ng-model` is necessary.
+

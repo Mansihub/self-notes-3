@@ -1,0 +1,19 @@
+Sure! Just-In-Time (JIT) compilation is a way to make your programs run faster. Here’s a simple explanation:
+
+1. **What is JIT Compilation?**
+   - JIT stands for "Just-In-Time." It's a technique used by some programming languages (like Java and C#) to make programs run faster by converting code into machine language just when it's needed.
+
+2. **How Does It Work?**
+   - **Step 1:** You write your code in a high-level language (like JavaScript or Java).
+   - **Step 2:** When you run the program, it first gets converted into an intermediate form (often called bytecode or intermediate code).
+   - **Step 3:** As your program runs, the JIT compiler looks at the code that’s being used the most or is the most critical. It converts these parts into machine language (which is directly understood by the computer’s hardware) while the program is still running.
+   - **Step 4:** The machine code is then used for faster execution in future runs.
+
+3. **Why Use JIT Compilation?**
+   - It helps your program run faster because the code is optimized for your specific hardware and can be tuned as it runs.
+   - It avoids the need to compile everything upfront, which can save time and resources.
+
+4. **Example:**
+   - Imagine you have a recipe (your code) and you decide to cook only the parts you’ll eat today (instead of preparing the entire dish beforehand). JIT compilation is like cooking just the portions you need as you go, rather than preparing the whole meal at once. This way, you only focus on what’s necessary at that moment.
+
+In summary, JIT compilation helps make programs run more efficiently by converting parts of the code into machine language on the fly, based on what’s needed during the program's execution.

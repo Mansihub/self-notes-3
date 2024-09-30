@@ -1,0 +1,9 @@
+Valid: false (if true, the value meets all criteria).
+
+Dirty: true (if true, the value has been changed).
+
+Touched: true (if true, the field has been in focus).
+
+View, which is the HTML.
+Model, which is the data available for the current view.
+Controller, which is the JavaScript function that makes/changes/removes/controls the data

@@ -1,0 +1,56 @@
+
+function counter(){
+    let x=1;
+    return function(){
+        x+=1;
+        return x;
+    }
+}
+
+const inc=counter();
+console.log(inc())
+console.log(inc())
+console.log(inc())
+
+Explaining closures can be straightforward if you break it down into simple concepts. Here’s how you can do it in an interview, using a basic example in JavaScript:
+
+### What is a Closure?
+
+A **closure** is a function that "remembers" the environment in which it was created, even after that environment has finished executing. This allows it to access variables from its outer scope.
+
+### Simple Example
+
+Let’s use a simple example to demonstrate:
+
+```javascript
+function createCounter() {
+    let count = 0; // This variable is in the outer function's scope
+
+    return function() { // This inner function forms a closure
+        count += 1; // It can access and modify the 'count' variable
+        return count;
+    };
+}
+
+const counter = createCounter(); // 'counter' is now a closure
+console.log(counter()); // Output: 1
+console.log(counter()); // Output: 2
+console.log(counter()); // Output: 3
+```
+
+### Breaking it Down
+
+1. **Outer Function**: `createCounter` is the outer function. It defines a variable `count` initialized to 0.
+  
+2. **Inner Function**: The function returned by `createCounter` is the inner function. It can access `count` even after `createCounter` has finished executing.
+
+3. **Closure**: When we call `createCounter()`, it returns the inner function, which is stored in `counter`. The inner function "remembers" its environment, which includes `count`.
+
+4. **Using the Closure**: Each time we call `counter()`, it increments `count` and returns its new value, demonstrating how the closure allows access to `count` even after the outer function has finished.
+
+### Summary
+
+You can say:
+"A closure lets a function access variables from its outer scope, even after that outer function has finished running. This is useful for creating private variables or maintaining state, like in our counter example."
+
+This simple explanation should give the interviewer a clear understanding of what closures are and how they work in practice!

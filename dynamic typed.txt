@@ -1,0 +1,46 @@
+A dynamic language is a programming language that performs many programming behaviors at runtime that static languages perform during compilation. Here’s what makes a language dynamic:
+
+1. **Type System**: In dynamic languages, types are checked at runtime, not at compile time. This means you don't need to explicitly declare the type of variables; the language figures it out as the program runs. For example, you can assign a number to a variable and later assign a string to the same variable without any type errors.
+
+2. **Flexibility**: Dynamic languages often allow you to add or modify functions, methods, or properties of objects at runtime. This flexibility can be useful for writing more adaptable and reusable code.
+
+3. **Duck Typing**: Many dynamic languages use duck typing, which means that the type of an object is determined by its behavior (methods and properties) rather than its explicit type. If an object behaves like a duck (has certain methods or properties), it can be treated as a duck, regardless of its actual type.
+
+4. **Late Binding**: Dynamic languages often use late binding, which means that method and property names are resolved at runtime rather than at compile time. This allows for more flexible code, where method names and property access can be determined as the program executes.
+
+### Example of a Dynamic Language
+
+JavaScript is a good example of a dynamic language:
+
+- **Variable Types**: You can write:
+  ```javascript
+  let x = 10;   // x is a number
+  x = "hello";  // now x is a string
+  ```
+
+- **Adding Methods**: You can add methods to objects at runtime:
+  ```javascript
+  let person = {
+    name: "Alice"
+  };
+  
+  person.sayHello = function() {
+    console.log("Hello, " + this.name);
+  };
+  
+  person.sayHello(); // Outputs: Hello, Alice
+  ```
+
+### Comparison with Static Languages
+
+In contrast, static languages (like Java or C++) require type information to be specified at compile time:
+
+- **Type Declarations**: You need to declare the type of a variable explicitly:
+  ```java
+  int x = 10;
+  x = "hello";  // This would cause a compile-time error
+  ```
+
+- **Compile-Time Checks**: Errors related to types are caught when you compile the program, not when you run it.
+
+Dynamic languages are often appreciated for their flexibility and ease of use, especially in scripting and rapid development. However, they can also lead to runtime errors that are harder to catch early in the development process.

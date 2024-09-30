@@ -1,0 +1,68 @@
+import mysql from 'mysql2/promise'
+import config from './config.js'
+
+
+const conn=mysql.createPool(config)
+
+const query1 = `create table if not exist tasks(
+  taskId VARCHAR(255) primary key, taskName VARCHAR(255), taskDescription VARCHAR(255) , status VARCHAR(255), email VARCHAR(255) unique);`
+
+const query2 = `create table if not exist users(
+      userId VARCHAR(255),
+      fname VARCHAR(255),
+      lname VARCHAR(255),
+      email VARCHAR(255) ,
+      password VARCHAR(255))`
+
+      
+const connectDB=()=>{
+        return new Promise((resolve,reject)=>{
+          conn.connect((err=>{
+            if(err){
+              console.log('error in establishing connection')
+              return reject(err)
+            }
+            console.log("connected to database")
+            resolve();
+          }))
+        })
+      }
+
+const queryDatabase=(query)=>{
+return new Promise((resolve, reject) => {
+  conn.query(query,(err,result)=>{
+    if(err){
+      console.log("error while executing query")
+      return reject(err)
+    }
+    resolve(result);
+  })
+})
+  }
+
+
+  const setupDatabase=async()=>{
+ try{
+  // first waiting for connection to db
+  await connectDB();
+try{
+  await queryDatabase(query1)
+  console.log("query 1 executed successfully")
+}
+catch(error){
+  console.error("Error executing query 1",error.message)
+}
+
+try {
+  await queryDatabase(query2);
+  console.log("query2 executed successfully")
+} catch (error) {
+  console.error("Error executing query 2",error.message)
+}
+ }
+ catch(error){
+console.error("error connecting to db",error.message)
+ }
+      }
+
+export {setupDatabase};

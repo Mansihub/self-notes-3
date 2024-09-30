@@ -1,0 +1,8 @@
+Now I needn’t establish connection again and again whenever the connection was lost . An added advantage of using pool connections is that all queries in MySQL connection are done one after another. It means that if you want to do 10 queries and each query takes 5 it takes 50 seconds to complete whole execution.
+ The solution is to create 10 connections and run each query in a different connection.
+ This is automatically done using connection pool. Pool connections are really great for database intensive applications , 
+just the right thing for my project. I have kept the connectionLimit to 4 since my remote database supports only 5 
+maximum user connection limit.
+
+
+https://medium.com/dscjssstu/pooling-connections-in-node-js-mysql-9685d5c03c30

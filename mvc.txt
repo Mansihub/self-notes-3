@@ -1,0 +1,1 @@
+ Angular also enforces a separation of concerns using the Model-View-Controller (MVC) architecture. This keeps your code clean and organized by separating the data (Model) from how it’s displayed (View) and how the user interacts with it (Controller).

@@ -1,0 +1,111 @@
+Git commands in chapters:
+
+1. git clone "repo_link"
+to clone a repo in local machine 
+
+2. git config --global user.name 
+to configure username
+
+3. git config --global user.email
+to configure user email
+
+4. git config --global alias.res reset
+to create shorter commands(reset -> res)
+
+5. git init
+to initialize a git repo
+
+6. git add ./"filename"
+to add files in staging area
+
+7. git add .
+to add all files in staging area
+
+8. git status
+to check the status of files
+
+9. Ignoring file -> .gitignore
+
+10. git diff
+to show the difference between two branches, file or commit
+
+11. git commit -m "message"
+to commit the changes with message
+
+12. git commit --amend
+to amend a commit with new chamges
+
+13. git log
+to show the history of logs
+
+14. git remote  -> show remote server
+
+15. git remote add origin URL
+to add remote repository
+
+16. git remote remove origin
+to remove remote repository
+
+17. git fetch -> fetch the changes from remote branch
+
+18. git pull origin master -> git fetch + git merge/rebase
+
+19. git push origin master
+to upload the file to remote repo
+
+20. git tag -> show all tags
+
+21. git tag -a v1.5 commit_checksum  -> annotated tags
+
+22. git checkout "tag"  -> move HEAD to the tag
+
+23. git push origin "tag"  -> push the tags to remote repo
+
+24. git branch "branchname"  -> create new branch
+
+25. git branch -d "branchname"  -> delete a branch
+
+26. git branch  -> show all branches
+
+27. git checkout "branchname"  -> switch branch
+
+28. git checkout -b "branchname"  -> git branch + git checkout
+
+29. git merge "branchname"
+to merge the current branch with branch "branchname"
+
+30. git rebase "branchname"
+to rebase the branch "branchname" to the current branch
+
+31. git reflog
+to show the history of commits where HEAD has travelled
+
+32. git stash 
+to stash the uncommited changes
+
+33. git stash pop
+to apply the latest stash and delete it
+
+34. git stash apply stash@{1}
+to apply a specific stash
+
+35. git stash show
+to show all stash
+
+36. git stash drop
+to delete a specific stash
+
+37. git revert "commitHash"
+move HEAD to a spcific commit
+
+38. git reset --soft
+move HEAD to previous commit and store the changes to staging area
+
+39. git reset --mixed
+move HEAD to previous commit and store the changes to unstaging area
+
+40. git reset --hard
+move HEAD to previous commit and delete the changes
+
+41. git cherry-pick "commithash"
+bring and add spcific commit of same or another branch

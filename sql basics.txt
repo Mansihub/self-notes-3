@@ -1,0 +1,41 @@
+SQL keywords are NOT case sensitive: select is the same as SELECT
+update ad_attribute_list set enity_name='rench'--will set for all rows in table
+(remember to apply where condition in above query if required)
+drop table table_name;
+delete from table_name;
+(both of the above query will delete the enntire table)'if we want to delete a particular row thenn,
+delete from table_name where condition;
+insert into table_name values('all','col','val','will','be','filled');
+Insert into table_name(entity_name,display_name,required) values ('fench','truekey','false')
+--column name need not too be in string
+we do not insert any value in auto-increment field..it will automatically be updated.
+
+
+for inserting multiple rows in a table:
+Insert into table_name(entity_name,display_name,required)
+values 
+('fench','truekey','false'),
+('fench','truekey','false'),
+('fench','truekey','false'),
+below two to study:
+CREATE INDEX - creates an index (search key)
+DROP INDEX - deletes an index
+
+ A NULL value is different from a zero value or a field that contains spaces. A field with a NULL value is one that has been left blank during record creation!
+
+The following SQL statement deletes all rows in the "Customers" table, without deleting the table:
+DELETE FROM Customers;
+
+To delete the table completely, use the DROP TABLE statement:
+DROP TABLE Customers;
+
+The GROUP BY clause splits the result-set into groups of values and the aggregate function can be used to return a single value for each group.
+
+aggregate funcitons are:min,max,count,sum,avg
+aggregate function ignore null values except the count function.
+
+When you use MIN() or MAX(), the returned column will not have a descriptive name. To give the column a descriptive name, use the AS keyword:
+SELECT MIN(Price) AS SmallestPrice
+FROM Products;
+
+

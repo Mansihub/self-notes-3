@@ -1,0 +1,769 @@
+const logger = require('../util/logger')
+const { v4: uuidv4 } = require('uuid')
+const createHttpError = require('http-errors')
+const { INTERNAL_SERVER_ERROR } = require('../client/http/statuscodeconstant')
+const config = require('../config/config')
+const {manipulateFormSchema, keysToCamel} = require('../util/util-method')
+const { getCheckboxValues } = require('../util/app-multiselect-helper')
+const { getUserAllRestApps, createRestApp } = require('../util/query-constants')
+
+module.exports = {
+    /**
+     * This route is used to save or share a recipe from the manage page.
+     * @param {*} req 
+     * @param {*} res 
+     * @param {*} next 
+     */
+    saveAndShareRecipe: async (req, res, next) => {
+        try {
+            const { insertList, updateList } = await checkIfRecipeAlreadyExists(req.body.recipeData.userlist, req.body.recipeData.flowId)
+            const flowData = await pool.query(`SELECT f.flow_data, f.flow_structure_data, n.node_position, n.node_summary, n.nodeconfig_id from flow as f join node as n on f.flow_id=n.flow_id and f.flow_version=n.flow_version where f.flow_id=?  and f.flow_version=?`, [req.body.recipeData.flowId, req.body.recipeData.flowVersion])
+            const integrationData = await pool.query(`SELECT nodeconfig_id, node_summary, integration_app_id, node_formdata, triggerWarning from integration_node where flow_id = ? and flow_version = ?`, [req.body.recipeData.flowId, req.body.recipeData.flowVersion])
+            const usedTemplatesData = await getEmailTemplatesUsed(flowData[0].flow_data, flowData[0].flow_structure_data)
+            if (insertList.length !== 0) {
+                await insertRecipes(req, flowData, insertList, integrationData, usedTemplatesData)
+            }
+            if (updateList.length !== 0) {
+                for (let user of updateList) {
+                    const recipeId = (await pool.query('SELECT recipe_id from recipe where flow_id = ? and shared_with = ?', [req.body.recipeData.flowId, user]))[0].recipe_id
+                    await pool.query(`UPDATE recipe SET recipe_name = ?, recipe_description = ?, flow_data = ?, flow_structure_data = ?, last_modified_date=Now() where recipe_id = ?`, [req.body.recipeData.recipeName, req.body.recipeData.recipeDescription, flowData[0].flow_data, flowData[0].flow_structure_data, recipeId])
+                    flowData.map(async obj => {
+                        await pool.query('Update recipe_node SET node_config_id = ?, node_form_summary = ? where recipe_id = ? and node_position = ?', [obj.nodeconfig_id, obj.node_summary, recipeId, obj.node_position])
+                    })
+                    if (integrationData.length > 0) {
+                        await pool.query('DELETE from recipe_integration where recipe_id = ?', [recipeId])
+                        await insertIntegrationData(integrationData, recipeId, req)
+                    }
+                    if (usedTemplatesData.length > 0) {
+                        await pool.query('DELETE from recipe_email_templates where recipe_id = ?', [recipeId])
+                        await insertIntoRecipeMail(recipeId, usedTemplatesData)
+                    }
+                }
+            }
+            res.status(200).send({ response: 'sucessfully inserted' })
+        } catch (err) {
+            const message = `Unable to save or share recipe: error-detail: ${err}`
+            logger.error(
+                `SaveAndShare /recipe/shareRecipe - ${message} stackTrace: ${err.stack}`
+            )
+            next(
+                createHttpError(
+                    INTERNAL_SERVER_ERROR,
+                    'Error encoutered while sharing recipe'
+                )
+            )
+        }
+    },
+
+    /**
+     * This route is used to re share a recipe from the recipe page.
+     * @param {*} req 
+     * @param {*} res 
+     * @param {*} next 
+     */
+    reshareRecipe: async (req, res, next) => {
+        try {
+            const userList = req.body.recipeData.userlist
+            const flowData = await pool.query(`SELECT recipe.flow_data, recipe.flow_structure_data, recipe_node.node_position, recipe_node.node_form_summary, recipe_node.node_config_id from recipe join recipe_node on recipe.recipe_id = recipe_node.recipe_id where recipe.recipe_id = ?`, [req.body.recipeData.recipeId])
+            const integrationData = await pool.query(`SELECT nodeconfig_id, node_summary, node_formdata, triggerWarning from recipe_integration where recipe_id = ?`, [req.body.recipeData.recipeId])
+            const usedTemplatesData = await pool.query(`Select template_id, template_name, lifecycle_events, lifecycle_events, IMS, template_data from recipe_email_templates where recipe_id = ?`, [req.body.recipeData.recipeId])
+            for (let user of userList) {
+                const recipeId = uuidv4()
+                let saveRecipeObject = {
+                    recipe_id: recipeId,
+                    shared_by: req.username,
+                    recipe_name: req.body.recipeData.recipeName,
+                    recipe_description: req.body.recipeData.recipeDescription,
+                    flow_structure_data: flowData[0].flow_structure_data,
+                    shared_with: user.trim(),
+                    flow_data: flowData[0].flow_data,
+                    created_by: config.profile,
+                    last_modified_by: config.profile
+                }
+                await pool.query(`INSERT INTO recipe SET ?`, saveRecipeObject)
+
+                const recipeNodeValuesUpdate = flowData.map(element => [
+                    recipeId,
+                    element.node_config_id,
+                    element.node_position,
+                    element.node_form_summary,
+                    config.profile,
+                    config.profile
+                ]) 
+                await pool.query('INSERT INTO recipe_node (recipe_id, node_config_id, node_position, node_form_summary, created_by, last_modified_by) VALUES ?', [recipeNodeValuesUpdate])
+
+                if (integrationData.length > 0) {
+                    await insertIntegrationData(integrationData, recipeId, req)
+                }
+
+                if (usedTemplatesData.length > 0) {
+                    await insertIntoRecipeMail(recipeId, usedTemplatesData)
+                }
+            }
+            res.status(200).send({ response: `Sucessfully shared for ${userList}` })
+        } catch(err) {
+            const message = `Unable to reshare recipe: error-detail: ${err}`
+            logger.error(
+                `SaveAndShare /recipe/reshareRecipe - ${message} stackTrace: ${err.stack}`
+            )
+            next(
+                createHttpError(
+                    INTERNAL_SERVER_ERROR,
+                    'Error encoutered while resharing the recipe'
+                )
+            )
+        }
+    },
+
+    /**
+     * This route is used to get all the recipes of a user based on the filters, i.e., Shared with me, Enterprise and Saved.
+     * @param {*} req 
+     * @param {*} res 
+     * @param {*} next 
+     */
+    getRecipes: async (req, res, next) => {
+        try {
+            let queryParams = req.query
+            let searchValue = queryParams.searchValue ? req.query.searchValue : ''
+            let recipeCategoryArray = req.query.category ? req.query.category.split(',') : ''
+            const includeShareWithMe = !recipeCategoryArray || recipeCategoryArray.includes('Shared with me')
+            const includeSaved = !recipeCategoryArray || recipeCategoryArray.includes('Saved recipes')
+            let vhost = req.vhost.split('.')[0]
+            let enterpriseName = vhost.charAt(0).toUpperCase() + vhost.slice(1)
+
+            const includeEnterprise = !recipeCategoryArray || recipeCategoryArray.includes(`${enterpriseName} recipes`)
+            const offset = parseInt(req.query.offset)
+            let { where, dataToPass } = prepareWhereConstraint(includeSaved, includeShareWithMe, includeEnterprise, req.username, req.vhost, searchValue, offset)
+
+            let query = `SELECT recipe_id, recipe_name , recipe_description, COUNT(*) OVER() as totalRecipe, shared_by, 
+                CASE 
+                WHEN shared_by=? AND shared_with=?
+                   THEN 'Saved'
+                   ELSE 
+                       (
+                       CASE 
+                       WHEN shared_with=?
+                       THEN 'Shared'
+                       ELSE 
+                           (
+                               CASE 
+                               WHEN shared_with=? 
+                               THEN 'Enterprise'
+                               ELSE NULL
+                               END
+                           )
+                       END 
+                       )
+                   END
+                   AS 'type' 
+                   FROM recipe
+                   WHERE 
+                        (${where}) and recipe_name like ?  
+                    ORDER BY last_modified_date DESC
+                    LIMIT 12 OFFSET ?`
+            const filteredRecipes = await pool.query(query, dataToPass)
+
+            res.status(200).send(filteredRecipes)
+        } catch (err) {
+            const message = `Unable to get recipes: error-detail: ${err}`
+            logger.error(
+                `SaveAndShare /recipe/getRecipes - ${message} stackTrace: ${err.stack}`
+            )
+            next(
+                createHttpError(
+                    INTERNAL_SERVER_ERROR,
+                    'Error encoutered while getting the recipes.'
+                )
+            )
+        }
+    },
+
+    /**
+     * This route is used to get the details of a particular recipe.
+     * @param {*} req 
+     * @param {*} res 
+     * @param {*} next 
+     */
+    getRecipeDetails: async (req, res, next) => {
+        try {
+            let dataToSend = {}
+            let data = await pool.query('SELECT recipe.recipe_name, recipe.shared_with, recipe.recipe_description, recipe.shared_by, recipe.flow_data, recipe.last_modified_date, recipe_node.node_config_id, recipe_node.node_position, recipe_node.node_form_summary, application.app_display_name, node_configuration.form_schema from recipe join recipe_node on recipe.recipe_id = recipe_node.recipe_id join node_configuration on recipe_node.node_config_id = node_configuration.nodeconfig_id join application on node_configuration.app_id=application.app_id where recipe.recipe_id =? and recipe.shared_with IN (?, ?) order by recipe_node.node_position', [req.body.recipeId, req.username, req.vhost])
+            let integrationNodeSummary = await pool.query('SELECT node_summary , node_name , integration_app_display_name , form_schema, integration_category , triggerWarning  from recipe_integration join recipe on recipe.recipe_id = recipe_integration.recipe_id join integration_node_configuration on recipe_integration.nodeconfig_id=integration_node_configuration.nodeconfig_id join integration_application on integration_application.integration_app_id=integration_node_configuration.integration_app_id where recipe.recipe_id=? and recipe.shared_with IN (?, ?)', [req.body.recipeId, req.username, req.vhost])
+            integrationNodeSummary = manipulateFormSchema(integrationNodeSummary)
+            integrationNodeSummary.map(app => {
+                if (app.node_summary && JSON.parse(app.node_summary) && app.node_summary.includes('restAppData') && app.node_name === 'HTTP REST Connector' && app.integration_category === 'ITSM') {
+                     app.integration_app_display_name = JSON.parse(app.node_summary)[0]['restAppData']['connector_app_name']
+                     app.form_schema = app.form_schema.replace(/HTTP REST Connector/g, app.integration_app_display_name)
+                }
+            })
+            integrationNodeSummary = keysToCamel(integrationNodeSummary)
+            dataToSend.data = data
+            if(integrationNodeSummary.length > 0) {
+                dataToSend.integrationNodeSummary = integrationNodeSummary
+            }
+            if (data.length === 0) {
+                const obj = 'Page not Found'
+                res.status(404).send(obj)
+            } else {
+                res.status(200).send(dataToSend)
+            }
+        } catch (err) {
+            const message = `Unable to get the recipe details: error-detail: ${err}`
+            logger.error(
+                `SaveAndShare /recipe/getRecipeDetails - ${message} stackTrace: ${err.stack}`
+            )
+            next(
+                createHttpError(
+                    INTERNAL_SERVER_ERROR,
+                    'Error encoutered while getting recipe details.'
+                )
+            )
+        }
+    },
+
+    /**
+     * This route is used to delete the recipes of a user.
+     * @param {*} req 
+     * @param {*} res 
+     * @param {*} next 
+     */
+    deleteRecipe: async (req, res, next) => {
+        try {
+            await pool.query('Delete from recipe Where recipe_id = ? and shared_with = ?', [req.body.recipeId, req.username])
+            res.status(200).send({ response: 'Recipe Deleted Successfuly' })
+        } catch (err) {
+            const message = `Unable to delete recipe: error-detail: ${err}`
+            logger.error(
+                `SaveAndShare /recipe/deleteRecipe - ${message} stackTrace: ${err.stack}`
+            )
+            next(
+                createHttpError(
+                    INTERNAL_SERVER_ERROR,
+                    'Error encoutered while deleting the recipe.'
+                )
+            )
+        }
+    },
+
+    /**
+     * This route will create a brand new flow from a recipe.
+     * @param {*} req 
+     * @param {*} res 
+     * @param {*} next 
+     */
+    createFlowFromRecipe: async (req, res, next) => {
+        try {
+            const flowid = uuidv4()
+            const getData = await pool.query('Select recipe.recipe_name, recipe.recipe_description, recipe.flow_data, recipe.flow_structure_data, recipe_node.node_config_id, node_configuration.app_id, recipe_node.node_position, recipe_node.node_form_summary from recipe join recipe_node on recipe.recipe_id = recipe_node.recipe_id join node_configuration on recipe_node.node_config_id = node_configuration.nodeconfig_id where recipe.recipe_id = ? ORDER BY recipe_node.node_position', [req.body.recipeId])
+            const getUsedTemplates = await pool.query(`SELECT template_id, template_name, lifecycle_events, IMS, template_data from recipe_email_templates where recipe_id = ?`, [req.body.recipeId])
+            const getIntegrationData = await pool.query(`SELECT recipe_integration.nodeconfig_id, recipe_integration.node_formdata, recipe_integration.node_summary, recipe_integration.triggerWarning, integration_node_configuration.integration_app_id from recipe_integration join integration_node_configuration on recipe_integration.nodeconfig_id = integration_node_configuration.nodeconfig_id where recipe_integration.recipe_id = ?`, [req.body.recipeId])
+            let updatedNamesObj = []
+            if (getUsedTemplates.length > 0) {
+                let updatedFlowDataAndSummary = await updateEmailTemplates(getUsedTemplates, req.username, getData[0].flow_data, getData[1].node_form_summary, flowid)
+                getData[0].flow_data = updatedFlowDataAndSummary.flowData
+                getData[1].node_form_summary = updatedFlowDataAndSummary.nodeSummary
+                updatedNamesObj = updatedFlowDataAndSummary.updatedNamesObject
+            }
+            let copyFlowObj = {
+                username: req.username,
+                flow_id: flowid,
+                pip_id: req.body.pipId,
+                flow_name: req.body.flowName,
+                flow_description: req.body.flowDescription,
+                flow_status: 'Draft',
+                flow_version: 1,
+                flow_data: getData[0].flow_data,
+                flow_structure_data: getData[0].flow_structure_data,
+                CreatedBy: config.profile,
+                LastModifiedBy: config.profile,
+            }
+            await pool.query(`Insert into flow SET ?`, copyFlowObj);
+            const nodeValues = getData.map((item) => [
+                flowid,
+                item.node_config_id,
+                item.node_position,
+                uuidv4(),
+                item.node_form_summary,
+                item.app_id,
+                1,
+                config.profile,
+                config.profile
+            ]);
+            await pool.query('INSERT INTO node (flow_id, nodeconfig_id, node_position, node_id, node_summary, app_id, flow_version, CreatedBy, LastModifiedBy) VALUES ?', [nodeValues]);
+            
+            if (getIntegrationData.length > 0) {
+                const integrationValues = [];
+                const targetUserRestApps = await pool.query(getUserAllRestApps, [req.username])
+                for(const item of getIntegrationData) {
+                    item.node_formdata = item.node_formdata!==null ? item.node_formdata = JSON.parse(item.node_formdata) : item.node_formdata
+                    if (item.node_formdata && item.node_formdata.restAppData!==undefined) {
+                        const index = targetUserRestApps.findIndex(obj => obj.connector_app_name.toLowerCase().trim() === 
+                        item.node_formdata.restAppData.connector_app_name.toLowerCase().trim() && 
+                        obj.integration_category === item.node_formdata.restAppData.integration_category)
+                        let newName = `${item.node_formdata.restAppData.connector_app_name}`
+                        if (index !== -1) {
+                            newName = `${item.node_formdata.restAppData.connector_app_name}-1`
+                            let increment = 2
+                            while (targetUserRestApps.findIndex(obj => obj.connector_app_name.toLowerCase().trim() === 
+                            newName.toLowerCase().trim() && 
+                            obj.integration_category === item.node_formdata.restAppData.integration_category) !== -1) {
+                                newName = `${item.node_formdata.restAppData.connector_app_name}-${increment}`
+                                increment++
+                            }
+                            updatedNamesObj.push({ integration_category: item.node_formdata.restAppData.integration_category, oldRestAppName: item.node_formdata.restAppData.connector_app_name, newName: newName})
+                        }
+                        item.integration_app_id = uuidv4()
+                        const newRestApp = {
+                            connector_app_id: item.integration_app_id,
+                            connector_app_name: newName,
+                            username: req.username ,
+                            integration_category: item.node_formdata.restAppData.integration_category
+                          }
+                        await pool.query(createRestApp, newRestApp)
+                    }
+                    modifyItem(item)
+                    integrationValues.push([
+                        flowid,
+                        item.nodeconfig_id,
+                        item.node_formdata,
+                        uuidv4(),
+                        item.node_summary,
+                        item.integration_app_id,
+                        item.triggerWarning,
+                        1,
+                        config.profile,
+                        config.profile
+                    ]);
+                }
+
+                await pool.query('INSERT INTO integration_node (flow_id, nodeconfig_id, node_formdata, node_id, node_summary, integration_app_id, triggerWarning, flow_version, CreatedBy, LastModifiedBy) VALUES ?', [integrationValues]);
+            }
+            res.status(200).send({ response: 'Flow Created Successfully', flowId: flowid, updatedNames: updatedNamesObj ? updatedNamesObj : false })
+        } catch (err) {
+            const message = `Unable to create flow from recipe: error-detail: ${err}`
+            logger.error(
+                `SaveAndShare /recipe/createFlowFromRecipe - ${message} stackTrace: ${err.stack}`
+            )
+            next(
+                createHttpError(
+                    INTERNAL_SERVER_ERROR,
+                    'Error encoutered while creating flow from recipe.'
+                )
+            )
+        }
+    }
+}
+
+function modifyItem(item) {
+    if (item.node_formdata !== null && item.node_formdata.restAppData) {
+        delete item.node_formdata.restAppData;
+    }
+    if (item.node_formdata == {}) {
+        item.node_formdata = null
+    } else if (item.node_formdata !== null && typeof item.node_formdata!== 'string'){
+        item.node_formdata = JSON.stringify(item.node_formdata)
+    }
+    if (item.node_summary!==null && item.node_summary.includes('restAppData')) {
+        item.node_summary = JSON.parse(item.node_summary)
+        delete item.node_summary.restAppData
+    }
+    if ( item.node_summary == {}) {
+        item.node_summary = null
+    } else if (item.node_summary!== null && typeof item.node_summary!== 'string') {
+        item.node_summary = JSON.stringify(item.node_summary)
+    }
+}
+
+/**
+ * This function prepares the where clause for the query of getting recipes of a user, as there can be different filters.
+ * @param {*} includeSaved : If saved recipes should be included in where clause.
+ * @param {*} includeShareWithMe  : If recipes shared to the user should be included in where clause.
+ * @param {*} includeEnterprise  : If Enterprise recipes should be included in the where cluse.
+ * @param {*} username 
+ * @param {*} vhost 
+ * @param {*} searchValue : Search value.
+ * @param {*} offset : Offset used for pagination.
+ * @returns where clause for the query and data to pass in the query.
+ */
+function prepareWhereConstraint(includeSaved, includeShareWithMe, includeEnterprise, username, vhost, searchValue, offset) {
+    let where = `${includeSaved ? '(shared_with = ? AND shared_by = ? ) OR' : ''}${includeShareWithMe ? ' (shared_with = ? AND shared_by!= ? ) OR' : ''} ${includeEnterprise ? '(shared_with = ?) OR' : ''}`;
+    let dataToPass = [username, username, username, vhost]
+    let tempArray = []
+    if (includeSaved) {
+        tempArray = tempArray.concat([username, username])
+    }
+    if (includeShareWithMe) {
+        tempArray = tempArray.concat([username, username])
+    }
+    if (includeEnterprise) {
+        tempArray = tempArray.concat([vhost])
+    }
+
+    dataToPass = dataToPass.concat(tempArray)
+    dataToPass = dataToPass.concat([`%${searchValue}%`, offset])
+    where = where ? where.substring(0, where.length - 3) : '';
+    return { where, dataToPass }
+}
+
+/**
+ * This function checks if a recipe already exists in the recipe table by searching for it using flowId and shared_with list, and returns two arrays: insertList and updateList.
+ * @param {string[]} userList - A list of users to share the recipe with.
+ * @param {string} flowId - The flowId of the flow that is being shared as a recipe.
+ * @returns {Promise<{insertList: string[], updateList: string[]}>} - An object containing two arrays: insertList and updateList.
+ */
+ async function checkIfRecipeAlreadyExists(userList, flowId) {
+    const rows = await pool.query('SELECT shared_with FROM recipe WHERE flow_id = ? AND shared_with IN (?)', [flowId, userList]);
+    const recipeExists = new Set(rows.map(row => row.shared_with));
+    const insertList = userList.filter(user => !recipeExists.has(user));
+    const updateList = userList.filter(user => recipeExists.has(user));
+    return { insertList, updateList };
+ }
+
+/**
+ * This function returns the email template used in a particular flow by searching in the flow data
+ * @param {*} flowData 
+ * @returns array of templates that are used in the flow.
+ */
+async function getEmailTemplatesUsed(flowData, flowStructureData) {
+    let templatesUsed = []
+    if (!flowData) {
+        return templatesUsed
+    }
+
+    flowData = JSON.parse(flowData)
+    let output_form = flowData.output_form
+
+    if (!output_form[2] || typeof output_form[2] != 'object') {
+        return []
+    }
+
+
+    templatesUsed = await getUsedEmailTemplates(output_form, flowStructureData)
+
+    const filteredTemplatedUsed = Array.from(new Set(templatesUsed))
+
+    if (filteredTemplatedUsed.length == 0) {
+        return []
+    }
+
+
+    let getTemplates =  await pool.query('select * from mail_template where template_id IN (?)', [filteredTemplatedUsed.map((template) => template.split('_')[0])])
+    return getTemplates.filter((template) => filteredTemplatedUsed.some((element) => element.split('_')[0] == template.template_id && element.split('_')[1] == template.template_version))
+
+
+}
+
+/**
+ * This function is used to insert the templates shared in recipe to the recipe_email_templates table.
+ * @param {*} recipeId : recipe_id of the shared recipes.
+ * @param {*} templates : templates array used in the recipes.
+ */
+async function insertIntoRecipeMail(recipeId, templates) {
+    const values = templates.map(element => [
+        recipeId,
+        element.template_id,
+        element.template_name,
+        element.lifecycle_events,
+        element.IMS,
+        element.template_data,
+        config.projectName,
+        config.projectName
+    ])
+    await pool.query('INSERT INTO recipe_email_templates (recipe_id, template_id, template_name, lifecycle_events, IMS, template_data, created_by, last_modified_by) VALUES ?', [values])
+}
+
+/**
+ * This function is used to check if the email template shared in a recipe exists in user's account.
+ * @param {*} emailTemplates : Email templates used in a recipe.
+ * @param {*} username 
+ * @param {*} flowData : flow data of flow.
+ * @param {*} nodeFormSummary : node summary of flow.
+ * @returns Updated flow_data and node_summary with updated template names.
+ */
+async function updateEmailTemplates(emailTemplates, username, flowData, nodeFormSummary, flowId) {
+    let getIfTemplateNameExists = await pool.query(`SELECT template_name from mail_template where template_name IN (?) and username = ?`, [emailTemplates.map((element) => element.template_name), username])
+    let updatedIdObj = []
+    if (getIfTemplateNameExists.length > 0) {
+        let updatedNamesObj = []
+        let getUserTemplates = await pool.query(`SELECT template_name FROM mail_template where username = ?`, [username])
+        for (let data of emailTemplates) {
+            data.newTemplateId = uuidv4()
+            const index = getUserTemplates.findIndex(obj => obj.template_name.toLowerCase().trim() === data.template_name.toLowerCase().trim())
+            if (index !== -1) {
+                let newName = `${data.template_name}-1`
+                let increment = 2
+                while (getUserTemplates.findIndex(obj => obj.template_name === newName) !== -1) {
+                    newName = `${data.template_name}-${increment}`
+                    increment++
+                }
+                updatedNamesObj.push({ templateId: data.template_id, oldTemplateName: data.template_name, newName: newName, newTemplateId: data.newTemplateId, template_data: JSON.parse(data.template_data) })
+                data.template_name = newName
+            }
+            else{
+                updatedIdObj.push({ templateId: data.template_id, newTemplateId: data.newTemplateId, template_data: JSON.parse(data.template_data) })
+            }
+        }
+        emailTemplates = await updateTemplateFormData(emailTemplates, updatedNamesObj, updatedIdObj)
+        let updatedData = await updateFlowData(flowData, nodeFormSummary, updatedNamesObj, updatedIdObj )
+        updatedData.updatedNamesObject = updatedNamesObj
+        await insertTemplateQueryFunction(emailTemplates, username, flowId)
+        return updatedData
+    }
+    let updatedTemplates = await updateTemplateFormData(emailTemplates, [], updatedIdObj)
+    emailTemplates = updatedTemplates.emailTemplates
+    updatedIdObj = updatedTemplates.updatedIdObj
+    const updatedDataWithoutTemplates = await updateFlowData(flowData, nodeFormSummary, [], updatedIdObj )
+    await insertTemplateQueryFunction(emailTemplates, username, flowId)
+    return updatedDataWithoutTemplates 
+}
+
+/**
+ * This function updates the name of the templates from the email template array.
+ * @param {*} emailTemplates : email templates array used in the flow.
+ * @param {*} updatedNamesObj : object which contains old template_id, new template_id, old_template_name, new template name.
+ * @returns email templates with updated names.
+ */
+async function updateTemplateFormData(emailTemplates, updatedNamesObj, updatedIdObj) {
+    const updateTemplateData = (template, newName, oldName) => {
+        let updatedData = template.template_data;
+        const newTemplateName = `"Template Name":"${newName}"`;
+        const oldTemplateName = new RegExp(`"Template Name":"${oldName}"`, 'g');
+        
+        if (typeof updatedData === 'string') {
+            updatedData = JSON.parse(updatedData);
+        }
+
+        // Update email addresses in template data
+        if (updatedData.templateForm?.templateFormData?.From !== undefined) {
+            updatedData.templateForm.templateFormData.From = config.smtp_credentials.FromAddress;
+        }
+        if (updatedData.templateConfig?.From !== undefined) {
+            updatedData.templateConfig.From = config.smtp_credentials.FromAddress;
+        }
+
+        // Convert back to JSON string
+        updatedData = JSON.stringify(updatedData);
+        updatedData = updatedData.replace(oldTemplateName, newTemplateName);
+
+        return updatedData;
+    };
+
+    if (updatedNamesObj.length > 0) {
+        for (const item of updatedNamesObj) {
+            const index = emailTemplates.findIndex(obj => obj.template_name === item.newName);
+
+            if (index !== -1) {
+                emailTemplates[index].template_data = updateTemplateData(
+                    emailTemplates[index],
+                    item.newName,
+                    item.oldTemplateName
+                );
+            }
+        }
+        return emailTemplates;
+    } else {
+        for (const item of emailTemplates) {
+            item.newTemplateId = uuidv4();
+            item.template_data = updateTemplateData(item);
+
+            updatedIdObj.push({
+                templateId: item.template_id,
+                newTemplateId: item.newTemplateId,
+                template_data: item.template_data
+            });
+        }
+        return { emailTemplates, updatedIdObj };
+    }
+
+    
+}
+
+/**
+ * This function is used to update the flow data and node summary with new template name and id.
+ * @param {*} flowData 
+ * @param {*} nodeSummary 
+ * @param {*} updatedNamesObj : array of object with old and updated template ids and names.
+ * @returns 
+ */
+async function updateFlowData(flowData, nodeSummary, updatedNamesObj, updatedIdObj) {
+    if(updatedNamesObj.length>0){
+        for (const item of updatedNamesObj) {
+            const oldTemplateData = new RegExp(`${item.templateId}_[0-9]+`, 'g')
+            const newTemplateData = `${item.newTemplateId}_1`
+            if(nodeSummary.includes(item.oldTemplateName)) {
+                nodeSummary = updatedNodeSummary(nodeSummary, item.oldTemplateName, item.newName, newTemplateData)
+            }
+            flowData = flowData.replace(oldTemplateData, newTemplateData)
+        }
+    }
+    if(updatedIdObj.length > 0){
+        for(const item of updatedIdObj) {
+            const oldTemplateId = new RegExp(`${item.templateId}_[0-9]+`, 'g')
+            const newTemplateId = `${item.newTemplateId}_1`
+            flowData = flowData.replace(oldTemplateId, newTemplateId)
+        }
+    }
+
+    return { flowData: flowData, nodeSummary: nodeSummary }
+
+}
+
+/**
+ * This function is used to insert the email templates shared in the recipe in the user's account.
+ * @param {*} emailTemplates : email template array with updated id and names.
+ * @param {*} username 
+ */
+async function insertTemplateQueryFunction(emailTemplates, username, flowId) {
+   let valueObj = emailTemplates.map(element => updateTemplateData(element))
+     valueObj = emailTemplates.map(element => [
+        element.newTemplateId ? element.newTemplateId : uuidv4(),
+        element.template_name,
+        username,
+        element.lifecycle_events,
+        element.IMS,
+        element.template_data,
+        1,
+        1
+    ])
+    await pool.query(`INSERT INTO mail_template (template_id, template_name, username, lifecycle_events, IMS, template_data, template_version, primary_version) VALUES ?`, [valueObj])
+
+    const templateFlowObj = emailTemplates.map(element => [
+        flowId,
+        element.newTemplateId ? element.newTemplateId : uuidv4(),
+        1,
+        config.projectName,
+        config.projectName,
+        1,
+        null
+    ])
+    await pool.query(`INSERT INTO template_flow (flow_id, template_id, template_version, created_by, last_modified_by, flow_version,expiration_date) VALUES ?`, [templateFlowObj])
+}
+
+/**
+ * This function is used to insert the integrations shared in the recipe if exists.
+ * @param {*} integrationData : integration data array
+ * @param {*} recipeId
+ */
+async function insertIntegrationData(integrationData, recipeId, req = {}) {
+    const userRestApps = req.username!==undefined ? await pool.query(getUserAllRestApps,[req.username]) : []
+    const recipeIntegrationValues = [];
+    for (const element of integrationData) {
+        if (userRestApps.length !== 0 && JSON.stringify(userRestApps).includes(element.integration_app_id)) {
+            const restAppUsed = userRestApps.filter(app => app.connector_app_id === element.integration_app_id)
+            const obj = {"connector_app_name" : restAppUsed[0]?.connector_app_name, "integration_category": restAppUsed[0]?.integration_category}
+            console.log(({"restAppData" : obj}));
+            if (element.node_formdata === null) {
+                element.node_formdata = {restAppData : obj}
+                element.node_formdata = JSON.stringify(element.node_formdata)
+            } else {
+                const nodedata = {...JSON.parse(element.node_formdata)}
+                nodedata["restAppData"] = obj
+                element.node_formdata = JSON.stringify(nodedata)
+            }
+            if (element.node_summary === null) {
+                element.node_summary = {restAppData : obj}
+                element.node_summary = JSON.stringify(element.node_summary)
+            } else {
+                const nodedata = JSON.parse(element.node_summary)
+                nodedata['restAppData'] = obj
+                element.node_summary = JSON.stringify(nodedata)
+            }
+        }
+        recipeIntegrationValues.push([
+            recipeId,
+            element.nodeconfig_id,
+            element.node_formdata,
+            element.node_summary,
+            element.triggerWarning,
+            config.profile,
+            config.profile
+        ]);
+    }
+ 
+    await pool.query('INSERT INTO recipe_integration (recipe_id, nodeconfig_id, node_formdata, node_summary, triggerWarning, created_by, last_modified_by) VALUES ?', [recipeIntegrationValues])
+}
+
+
+async function insertRecipes(req, flowData, insertList, integrationData, usedTemplatesData) {
+    for (let user of insertList) {
+        const recipeId = uuidv4()
+        let saveRecipeObject = {
+            recipe_id: recipeId,
+            shared_by: req.username,
+            recipe_name: req.body.recipeData.recipeName,
+            recipe_description: req.body.recipeData.recipeDescription,
+            flow_structure_data: flowData[0].flow_structure_data,
+            shared_with: user.trim(),
+            flow_id: req.body.recipeData.flowId,
+            flow_data: flowData[0].flow_data,
+            created_by: config.profile,
+            last_modified_by: config.profile
+        }
+        await pool.query(`INSERT INTO recipe SET ?`, saveRecipeObject)
+
+        const recipeNodeValues = flowData.map(element => [
+            recipeId,
+            element.nodeconfig_id,
+            element.node_position,
+            element.node_summary,
+            config.profile,
+            config.profile
+        ]) 
+
+        await pool.query('INSERT INTO recipe_node (recipe_id, node_config_id, node_position, node_form_summary, created_by, last_modified_by) VALUES ?', [recipeNodeValues])
+
+        if (integrationData.length > 0) {
+            await insertIntegrationData(integrationData, recipeId, req)
+        }
+
+        if (usedTemplatesData.length > 0) {
+            await insertIntoRecipeMail(recipeId, usedTemplatesData)
+        }
+    }
+}
+
+function checkIfFutureKey (key) {
+    return (!Array.isArray(key) && typeof key === 'object' && Object.keys(key).some(element => element.includes('mailTemplate')))
+}
+
+async function getUsedEmailTemplates(output_form, flowStructureData) {
+    let templatesUsed = []
+    let formLength = output_form.length;
+    for (const key in output_form[formLength-1]) {
+        const value = output_form[formLength-1][key];
+        if (typeof value === 'object') {
+            for (const data of Object.keys(value)) {
+                if(data) {templatesUsed  = templatesUsed.concat(value[data])}
+            }
+        }
+    }
+    return templatesUsed
+}
+
+const updatedNodeSummary = (nodeSummary, oldTemplateName, newTemplateName, newTemplateData) => {
+    nodeSummary = JSON.parse(nodeSummary)
+    for(let item of nodeSummary[Object.keys(nodeSummary).length]) {
+        if(item.value[0].customKey) {
+            for(let templates of item.value[0].value) {
+                let templateNamePart = templates[0];
+                let splitIndex = templates[0].lastIndexOf(' - [v');
+                if (splitIndex !== -1) {
+                    if(templateNamePart.substring(0, splitIndex).trim().toLowerCase() == oldTemplateName.toLowerCase()) {
+                        templates[0] = `${newTemplateName} - [v1, Latest] `;
+                        templates[4] = `${newTemplateData}`
+                    }
+                }
+            }
+        }
+    }
+    return JSON.stringify(nodeSummary)
+}
+function updateTemplateData (element) {
+    let templateData = JSON.parse(element.template_data)
+    let templateForm = templateData.templateForm
+    let templateId = element.newTemplateId
+    templateForm.templateId = templateId
+    templateData.templateForm = templateForm
+    element.template_data = JSON.stringify(templateData)
+
+}

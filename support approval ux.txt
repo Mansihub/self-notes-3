@@ -1,0 +1,22 @@
+const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+    console.error('Error while parsing approval configuration JSON:', errorMessage);
+    return null;
+
+
+
+  parseApprovalConfiguration(configString:string){
+    try{
+    return JSON.parse(configString);
+    }
+    catch(error){
+      if (error instanceof Error) {
+        console.error('Error while fetching approval configuration details:', error.message);
+      } else {
+        console.error('An unknown error occurred while parsing JSON.',error);
+      }
+      return null;
+    }
+       }
+
+
+ // const config=this.parseApprovalConfiguration(element.approvalConfiguration);

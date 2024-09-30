@@ -1,0 +1,63 @@
+import mysql from 'mysql2/promise'
+import config from './config.js'
+
+// const conn=mysql.createConnection(config)
+const query1 = `create table if not exist tasks(
+  taskId VARCHAR(255) primary key, taskName VARCHAR(255), taskDescription VARCHAR(255) , status VARCHAR(255), email VARCHAR(255) unique);`
+const query2 = `create table if not exist users(
+      userId VARCHAR(255),
+      fname VARCHAR(255),
+      lname VARCHAR(255),
+      email VARCHAR(255) ,
+      password VARCHAR(255))`
+// conn.connect((err) => {
+//   if (err) console.log(err);
+//   else {
+//     console.log("Connected to database");
+//     conn.query(query1, (err, result) => {
+//       if (err) console.log(err);
+//     });
+//     conn.query(query2, (err, result) => {
+//       if (err) console.log(err);
+//     });
+//   }
+// });
+
+
+const pool = mysql.createPool(config);
+
+
+const connectDB = async () => {
+  pool.getConnection((err, connection) => {
+    if (err) {
+      console.log({ error: err.message });
+    }
+    else{
+      console.log('connection to database established')
+
+      connection.query(query1, (err, results) => {
+        if (err) {
+          console.log("error executing query 1",err.message)
+          connection.release();
+          return;
+        }
+      })
+      
+     connection.query(query2,(err,results)=>{
+      if(err){
+        console.log("error executing query 2",err.message);
+        connection.release();
+        return;
+      }
+     })
+      }
+      connection.release();
+    });
+
+
+    };
+
+
+
+
+export {connectDB,pool};

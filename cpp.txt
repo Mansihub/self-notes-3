@@ -1,0 +1,51 @@
+In C++, if you call a function with fewer arguments than it requires, and those parameters do not have default values, it will result in a compile-time error. However, C++ supports default arguments, which allow you to specify default values for parameters. If a parameter has a default value, it becomes optional, and you can call the function with fewer arguments.
+
+### Without Default Arguments
+
+If you define a function without default arguments and call it with fewer arguments than required, you will get a compile-time error.
+
+```cpp
+#include <iostream>
+
+void exampleFunction(int param1, int param2, int param3) {
+    std::cout << param1 << ", " << param2 << ", " << param3 << std::endl;
+}
+
+int main() {
+    // exampleFunction(1); // Error: too few arguments to function
+    // exampleFunction(1, 2); // Error: too few arguments to function
+    exampleFunction(1, 2, 3); // Output: 1, 2, 3
+    return 0;
+}
+```
+
+### With Default Arguments
+
+You can specify default values for parameters, making them optional.
+
+```cpp
+#include <iostream>
+
+void exampleFunction(int param1, int param2 = 20, int param3 = 30) {
+    std::cout << param1 << ", " << param2 << ", " << param3 << std::endl;
+}
+
+int main() {
+    exampleFunction(1); // Output: 1, 20, 30
+    exampleFunction(1, 2); // Output: 1, 2, 30
+    exampleFunction(1, 2, 3); // Output: 1, 2, 3
+    return 0;
+}
+```
+
+### Explanation
+
+- **Without Default Arguments**: If you try to call the function with fewer arguments than parameters, you will get a compile-time error.
+- **With Default Arguments**: You can call the function with fewer arguments. The missing arguments will be filled in with their default values.
+
+### Summary
+
+- **C++ without default arguments**: Results in a compile-time error if called with fewer arguments.
+- **C++ with default arguments**: Allows calling the function with fewer arguments, using the specified default values for the missing arguments.
+
+This approach is similar to other statically-typed languages where the function's signature must match the number of provided arguments unless default values are specified.

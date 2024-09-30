@@ -1,0 +1,109 @@
+Angular is a framework for building Single Page Applications (SPAs), which means that the application loads a single HTML page and dynamically updates the content as the user interacts with the app, without requiring a full page reload. 
+
+When working with Angular, you might have many HTML files, but these are not separate pages in the traditional sense. Instead, these HTML files are templates for different components. Here's how it works:
+
+1. **Single HTML Entry Point**:
+   - An Angular application typically has a single main `index.html` file. This file contains the root component that Angular uses to bootstrap the application.
+
+2. **Components and Templates**:
+   - The application is divided into components. Each component has its own HTML template, which is an HTML file or an inline template defined in the component's TypeScript file.
+   - These component templates define the view for that specific part of the application.
+
+3. **Routing**:
+   - Angular's router is used to manage navigation within the application. It maps different URLs to specific components, which Angular then renders in the designated area of the main `index.html`.
+   - Even though the URL changes as you navigate through the app, the browser does not perform a full page reload. Instead, Angular updates the view by injecting the appropriate component's template into the main page.
+
+4. **Dynamic Content Loading**:
+   - When a user navigates to a different part of the application, Angular dynamically loads and displays the corresponding component's template within the existing single page.
+   - This approach allows for a seamless and fast user experience, as only the required parts of the page are updated.
+
+### Example Workflow
+
+1. **`index.html`**:
+   ```html
+   <!DOCTYPE html>
+   <html lang="en">
+   <head>
+     <meta charset="UTF-8">
+     <title>My Angular App</title>
+   </head>
+   <body>
+     <app-root></app-root>
+   </body>
+   </html>
+   ```
+   - The `<app-root>` element is where the Angular app is bootstrapped.
+
+2. **App Component (`app.component.ts`)**:
+   ```typescript
+   import { Component } from '@angular/core';
+
+   @Component({
+     selector: 'app-root',
+     templateUrl: './app.component.html',
+   })
+   export class AppComponent { }
+   ```
+
+3. **App Component Template (`app.component.html`)**:
+   ```html
+   <router-outlet></router-outlet>
+   ```
+
+4. **Routing Configuration (`app-routing.module.ts`)**:
+   ```typescript
+   import { NgModule } from '@angular/core';
+   import { RouterModule, Routes } from '@angular/router';
+   import { HomeComponent } from './home/home.component';
+   import { AboutComponent } from './about/about.component';
+
+   const routes: Routes = [
+     { path: '', component: HomeComponent },
+     { path: 'about', component: AboutComponent },
+   ];
+
+   @NgModule({
+     imports: [RouterModule.forRoot(routes)],
+     exports: [RouterModule]
+   })
+   export class AppRoutingModule { }
+   ```
+
+5. **Home Component (`home.component.ts`)**:
+   ```typescript
+   import { Component } from '@angular/core';
+
+   @Component({
+     selector: 'app-home',
+     templateUrl: './home.component.html',
+   })
+   export class HomeComponent { }
+   ```
+
+6. **Home Component Template (`home.component.html`)**:
+   ```html
+   <h1>Welcome to the Home Page</h1>
+   ```
+
+7. **About Component (`about.component.ts`)**:
+   ```typescript
+   import { Component } from '@angular/core';
+
+   @Component({
+     selector: 'app-about',
+     templateUrl: './about.component.html',
+   })
+   export class AboutComponent { }
+   ```
+
+8. **About Component Template (`about.component.html`)**:
+   ```html
+   <h1>About Us</h1>
+   ```
+
+### Navigation
+
+- When the user navigates to `/about`, Angular's router loads the `AboutComponent` and injects its template into the `<router-outlet>` in the main `app.component.html`.
+- The URL changes, but the browser does not reload the page. Angular handles everything client-side, making it a Single Page Application.
+
+In summary, Angular applications are SPAs because they rely on client-side routing and dynamic template injection to update the content without reloading the entire page, providing a smooth and fast user experience. The multiple HTML files you work with are templates for different components, not separate pages.

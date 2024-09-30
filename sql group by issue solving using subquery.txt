@@ -1,0 +1,73 @@
+Resolving group by issue:
+
+first version:
+
+SELECT 
+    flow.flow_id, 
+    flow.flow_structure_data, 
+    flow.flow_description,
+    flow.flow_name,
+    flow.flow_status, 
+    flow.CreatedDate, 
+    COUNT(*) OVER () AS totalCount 
+FROM 
+    flow 
+JOIN 
+    user_flow_access ON flow.flow_id = user_flow_access.flow_id 
+WHERE 
+    expiration_date IS NULL 
+    AND user_flow_access.username = ? 
+    AND SUBSTRING_INDEX(flow.username, '@', -1) = SUBSTRING_INDEX(user_flow_access.username, '@', -1) 
+    AND flow.flow_status IN (?) 
+    AND flow_name LIKE ? 
+GROUP BY 
+    flow.flow_id 
+ORDER BY 
+    flow.${order} ${sort} 
+LIMIT 
+    ? OFFSET ?
+
+In above query we have group by flow.flowid ... if column not included in geoup by then they should be included with aggregated fucntion but we can not apply any aggregated function in flow_structure as it includes an object so we can not apply maths function like max,count,min,sum so we will need a subquery to handle the case where we want to include grup by oly flow.flowid.so,we converted query to other form:
+
+second version:
+
+
+SELECT 
+    flow.flow_id, 
+    flow.flow_structure_data, 
+    flow.flow_description,
+    flow.flow_name,
+    flow.flow_status, 
+    flow.CreatedDate, 
+    subquery.totalCount
+FROM 
+    flow
+JOIN 
+    user_flow_access ON flow.flow_id = user_flow_access.flow_id 
+JOIN (
+    SELECT 
+        flow.flow_id, 
+        COUNT(*) OVER () AS totalCount 
+    FROM 
+        flow 
+    JOIN 
+        user_flow_access ON flow.flow_id = user_flow_access.flow_id 
+    WHERE 
+        expiration_date IS NULL 
+        AND user_flow_access.username = ? 
+        AND SUBSTRING_INDEX(flow.username, '@', -1) = SUBSTRING_INDEX(user_flow_access.username, '@', -1) 
+        AND flow.flow_status IN (?) 
+        AND flow_name LIKE ? 
+    GROUP BY 
+        flow.flow_id
+) subquery ON flow.flow_id = subquery.flow_id
+WHERE 
+    expiration_date IS NULL 
+    AND user_flow_access.username = ? 
+    AND SUBSTRING_INDEX(flow.username, '@', -1) = SUBSTRING_INDEX(user_flow_access.username, '@', -1) 
+    AND flow.flow_status IN (?) 
+    AND flow_name LIKE ?
+ORDER BY 
+    flow.${order} ${sort} 
+LIMIT 
+    ? OFFSET ?

@@ -1,0 +1,201 @@
+{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033{\fonttbl{\f0\fnil\fcharset0 Calibri;}}
+{\*\generator Riched20 10.0.19041}\viewkind4\uc1 
+\pard\sa200\sl276\slmult1\f0\fs22\lang9 let vs var\par
+var:function scope...let :block scope\par
+code:\line y=6;\par
+console.log(y);\par
+var y;\par
+\par
+z;\par
+console.log(z);\par
+var z=5;\par
+\par
+function abc()\{\par
+    console.log(x);\par
+    if(true)\{\par
+         var x=3;\par
+    \}\par
+    console.log(x);\par
+ \}\par
+abc();\par
+\par
+function bcd()\{\par
+      console.log(x);\par
+    if(true)\{\par
+        let x=3;\par
+    \}\par
+    console.log(x);\par
+\}\par
+bcd();\line\line output:\line 6\par
+undefined\par
+undefined\par
+3\par
+ERROR!\par
+/tmp/3Z523r5IJa.js:24\par
+      console.log(x);\par
+                  ^\par
+\par
+ReferenceError: x is not defined\par
+    at bcd (/tmp/3Z523r5IJa.js:24:19)\par
+    at Object.<anonymous> (/tmp/3Z523r5IJa.js:30:1)\par
+    at Module._compile (node:internal/modules/cjs/loader:1364:14)\par
+    at Module._extensions..js (node:internal/modules/cjs/loader:1422:10)\par
+    at Module.load (node:internal/modules/cjs/loader:1203:32)\par
+    at Module._load (node:internal/modules/cjs/loader:1019:12)\par
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:128:12)\par
+    at node:internal/main/run_main_module:28:49\par
+var vs let/const:\line Yes, in JavaScript, the difference between function scope and block scope is crucial for understanding how variables behave. Let\rquote s break it down:\par
+\par
+### Function Scope (using `var`)\par
+\par
+- **Definition**: Variables declared with `var` are function-scoped. This means that they are accessible throughout the function in which they are declared, but not outside of it.\par
+\par
+- **Behavior**:\par
+  - If you declare a `var` variable inside a function, it is accessible anywhere within that function.\par
+  - If you declare `var` inside a block (like inside an `if` statement or a loop), it still remains accessible outside of that block within the same function.\par
+\par
+- **Example**:\par
+\par
+  ```javascript\par
+  function exampleFunction() \{\par
+    if (true) \{\par
+      var x = 10; // 'x' is function-scoped\par
+    \}\par
+    console.log(x); // 10, 'x' is accessible here\par
+  \}\par
+  \par
+  exampleFunction();\par
+  ```\par
+\par
+  In this example, `x` is accessible outside the `if` block because `var` is function-scoped.\par
+\par
+### Block Scope (using `let` and `const`)\par
+\par
+- **Definition**: Variables declared with `let` and `const` are block-scoped. This means they are only accessible within the block (denoted by `\{\}`) in which they are declared.\par
+\par
+- **Behavior**:\par
+  - If you declare a variable with `let` or `const` inside a block, it is only accessible within that block.\par
+  - This helps to avoid unintended interactions between different parts of your code and helps to keep your code more predictable and maintainable.\par
+\par
+- **Example**:\par
+\par
+  ```javascript\par
+  function exampleFunction() \{\par
+    if (true) \{\par
+      let y = 20; // 'y' is block-scoped\par
+    \}\par
+    console.log(y); // ReferenceError: y is not defined\par
+  \}\par
+  \par
+  exampleFunction();\par
+  ```\par
+\par
+  In this example, `y` is not accessible outside the `if` block because `let` is block-scoped.\par
+\par
+### Summary of Differences\par
+\par
+1. **Scope**:\par
+   - `var`: Function scope; accessible throughout the function where it is declared.\par
+   - `let` and `const`: Block scope; accessible only within the block where they are declared.\par
+\par
+2. **Hoisting**:\par
+   - `var` declarations are hoisted to the top of their function, meaning they can be referenced before they are declared (though they will be `undefined` until the declaration is executed).\par
+   - `let` and `const` declarations are also hoisted, but they are not initialized until their declaration is encountered. Accessing them before their declaration results in a `ReferenceError` due to the "temporal dead zone".\par
+\par
+3. **Re-declaration**:\par
+   - `var` allows re-declaration within the same scope.\par
+   - `let` and `const` do not allow re-declaration within the same block scope. They will throw a `SyntaxError` if you try to re-declare them in the same block.\par
+\par
+### Practical Tips\par
+\par
+- Use `let` and `const` for block-scoped variables to avoid common pitfalls with `var` and to write cleaner, more maintainable code.\par
+- Use `const` for variables that you don\rquote t plan to reassign, and `let` for variables that you expect to change.\par
+\par
+Understanding these differences helps in writing more predictable and bug-free JavaScript code.\par
+hoisting in let vs var:\line var: Hoisted and initialized to undefined. You can access it before the declaration but it will be undefined.\par
+let and const: Hoisted but not initialized. Accessing them before their declaration throws a ReferenceError due to the TDZ.\par
+Practical Implications\par
+Use var if you need the variable to be accessible throughout the function, even before its declaration.\par
+Use let and const for block-scoped variables to avoid issues with TDZ and to enforce better coding practices.\par
+In 'Strict mode,' however, all forms of errors, including silent errors, will be thrown. As a result, debugging becomes a lot simpler.  Thus programmer's chances of making an error are lowered.\par
+\par
+Characteristics of strict mode in javascript\par
+\par
+Duplicate arguments are not allowed by developers.\par
+In strict mode, you won't be able to use the JavaScript keyword as a parameter or function name.\par
+The 'use strict' keyword is used to define strict mode at the start of the script. Strict mode is supported by all browsers.\par
+Engineers will not be allowed to create global variables in 'Strict Mode\par
+Lexical Scope: JavaScript uses lexical scoping, meaning that the scope of variables is determined by their physical placement in the code. \par
+In JavaScript, the `exec` and `test` methods are both used with regular expressions (RegExp) but serve different purposes and return different types of results.\par
+\par
+### `RegExp.prototype.exec()`\par
+\par
+- **Purpose**: Executes a search for a match in a string and returns detailed information about the match.\par
+- **Return Value**: An array containing the matched text and any captured groups, or `null` if no match is found.\par
+- **Usage**: Typically used when you need detailed information about the match, such as the full match and any capturing groups.\par
+\par
+**Example:**\par
+\par
+```javascript\par
+const regex = /(\\d+)/;\par
+const str = 'The number is 42';\par
+\par
+const result = regex.exec(str);\par
+\par
+console.log(result);\par
+// Output: [ '42', '42', index: 15, input: 'The number is 42', groups: undefined ]\par
+\par
+console.log(result[0]); // '42' (full match)\par
+console.log(result[1]); // '42' (capturing group 1)\par
+```\par
+\par
+- **Explanation**: The `exec` method returns an array where:\par
+  - `result[0]` is the full match.\par
+  - `result[1]` (and any further indices) correspond to capturing groups.\par
+  - Additional properties like `index` (the position in the string where the match starts) and `input` (the original string) are also included.\par
+\par
+### `RegExp.prototype.test()`\par
+\par
+- **Purpose**: Tests whether a regular expression matches a part of a string.\par
+- **Return Value**: A boolean value (`true` or `false`) indicating whether the pattern was found in the string.\par
+- **Usage**: Useful for simple checks to see if a string matches a pattern.\par
+\par
+**Example:**\par
+\par
+```javascript\par
+const regex = /\\d+/;\par
+const str = 'The number is 42';\par
+\par
+const result = regex.test(str);\par
+\par
+console.log(result); // Output: true\par
+```\par
+\par
+- **Explanation**: The `test` method returns `true` if there is a match in the string and `false` if there isn\rquote t. It does not provide details about the match itself.\par
+\par
+### Summary\par
+\par
+- Use **`exec`** when you need detailed information about the match, such as the full match, capturing groups, or the position of the match.\par
+- Use **`test`** when you simply need to check if a pattern exists in a string and don\rquote t need any further details.\par
+\par
+Choosing between `exec` and `test` depends on whether you need just a boolean result or detailed match information.\par
+\b closure:\b0\par
+ when you return the inner function (box) from the outer function (folder), the inner function keeps a reference to the environment it was created in, including the count variable (the note). This is why you can continue to access and modify count through the inner function, even though the outer function has completed its execution.\par
+: Even though the folder (outer function) is no longer in use, the box (inner function) can still access and modify the note because it was part of its environment when it was created.\par
+\b prototype:\par
+var arr = [];\par
+arr.push(2);\par
+\par
+console.log(arr); // Outputs [2]\par
+In the code above, as one can see, we have not defined any property or method called push on the array \ldblquote arr\rdblquote  but the javascript engine does not throw an error.\par
+\par
+The reason is the use of prototypes. As we discussed before, Array objects inherit properties from the Array prototype.\par
+\par
+The javascript engine sees that the method push does not exist on the current array object and therefore, looks for the method push inside the Array prototype and it finds the method.\par
+\par
+Whenever the property or method is not found on the current object, the javascript engine will always try to look in its prototype and if it still does not exist, it looks inside the prototype's prototype and so on.\par
+\ul\b0 Although using memoization saves time, it results in larger consumption of memory since we are storing all the computed results.\par
+\ulnone\par
+\par
+}
+ 

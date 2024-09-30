@@ -1,0 +1,45 @@
+Functional updates are commonly used in the context of callbacks, but they are not limited to just that. They can be applied in various scenarios where you want to derive a new value based on a previous one. Here are a few contexts where functional updates can be used:
+
+### 1. Callbacks
+As discussed earlier, callbacks are a typical use case. When you want to update a value based on its previous state, you can pass a function that performs the calculation.
+
+### 2. Array Methods
+Many array methods in JavaScript accept a callback function, allowing you to create functional updates. For example, using `reduce` to accumulate values:
+
+```javascript
+const numbers = [1, 2, 3, 4];
+const sum = numbers.reduce((prev, current) => prev + current, 0);
+console.log(sum); // Output: 10
+```
+
+### 3. Promises
+When handling asynchronous operations with Promises, you can also use functional updates. For example, chaining `.then()` to process the result of a previous Promise:
+
+```javascript
+let value = 5;
+
+Promise.resolve(value)
+    .then(prev => prev * 2) // Using the previous value
+    .then(prev => prev + 3) // Using the updated value
+    .then(result => console.log(result)); // Output: 13
+```
+
+### 4. Event Handling
+In event handling, you might want to update some state based on user actions:
+
+```javascript
+let count = 0;
+
+document.getElementById("increment").addEventListener("click", () => {
+    count++;
+    console.log("Count:", count);
+});
+```
+
+While this example isn’t strictly a functional update, if you had a function that processed the count, it could fit into that pattern.
+
+### 5. State Management Libraries
+In libraries like Redux, functional updates are common. When dispatching actions, you might calculate the new state based on the previous state.
+
+### Summary
+Functional updates are versatile and can be utilized in callbacks, array methods, Promises, event handling, and state management. They are a powerful way to derive new values based on previous states, promoting clarity and predictability in your code.
